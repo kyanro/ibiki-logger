@@ -67,7 +67,7 @@ private const val FIRST_CLIP_ITEM = 3
     LaunchedEffect(page, pendingItem) {
         pendingItem?.let { listState.scrollToItem(it); pendingItem = null }
     }
-    Column(modifier) {
+    Column(modifier.testTag("detail_screen")) {
         Surface(shadowElevation = 3.dp, color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {

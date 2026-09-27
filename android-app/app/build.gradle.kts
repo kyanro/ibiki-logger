@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.kyanro.ibiki_logger"
     compileSdk = 37
+    testBuildType = if (providers.gradleProperty("readmeScreenshots").orNull == "true") "screenshots" else "debug"
     defaultConfig {
         applicationId = "com.kyanro.ibiki_logger"
         minSdk = 29
@@ -16,6 +17,12 @@ android {
     }
 
     buildTypes {
+        create("screenshots") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".screenshots"
+            versionNameSuffix = "-screenshots"
+            matchingFallbacks += "debug"
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

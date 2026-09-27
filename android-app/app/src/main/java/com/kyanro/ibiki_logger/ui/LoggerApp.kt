@@ -144,7 +144,7 @@ fun durationLabel(ms: Long): String {
                 )
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize().padding(insets), state = listState, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            LazyColumn(Modifier.fillMaxSize().padding(insets).testTag("home_screen"), state = listState, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 item {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
