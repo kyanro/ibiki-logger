@@ -34,6 +34,12 @@ class DetailNavigationTest {
         ui.onNodeWithTag("page_controls_top").assertIsDisplayed().assert(hasAnyDescendant(hasText("11–12 / 12区間")))
         ui.onNodeWithTag("page_previous_top").performClick()
         ui.onNodeWithTag("page_controls_top").assertIsDisplayed().assert(hasAnyDescendant(hasText("6–10 / 12区間")))
+        timeline.assert(hasContentDescription("選択中の区間 6", substring = true))
+        ui.onNodeWithTag("clip_5").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "選択中"))
+        ui.onNodeWithTag("page_next_top").performClick()
+        timeline.assert(hasContentDescription("選択中の区間 11", substring = true))
+        ui.onNodeWithTag("clip_10").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "選択中"))
+        ui.onNodeWithTag("page_previous_top").performClick()
         // Returning to the same target remains usable after manually scrolling away.
         timeline.performTouchInput { click(Offset(width * .55f, height / 2f)) }
         ui.onNodeWithTag("detail_clips").performScrollToNode(hasTestTag("page_next_bottom"))

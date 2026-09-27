@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -59,7 +60,7 @@ private const val FIRST_CLIP_ITEM = 3
     fun changePage(next: Int) {
         player.stop()
         requestedPage = next.coerceIn(0, pageCount - 1)
-        focusedIndex = null
+        focusedIndex = (requestedPage * CLIPS_PER_PAGE).takeIf { it in session.clips.indices }
         pendingItem = FIRST_CLIP_ITEM - 1
     }
     // Wait for the new page's items to exist before resolving the target position.
@@ -188,7 +189,7 @@ private const val FIRST_CLIP_ITEM = 3
         }
         focusedClip?.let { clip ->
             val x = size.width * (clip.startMs + clip.durationMs / 2) / duration
-            drawLine(selectedColor, Offset(x, 0f), Offset(x, size.height), 2f)
+            drawLine(Color.White, Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
         }
     }
 }
