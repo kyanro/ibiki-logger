@@ -87,3 +87,7 @@ Copyright 2026 kyanro
 ソースコードと文書は、sim-speed-viewerと同じ [Apache License 2.0](LICENSE) の下で提供します。収録音源はApache License 2.0の対象外です。音源の権利表示は [ASSET_LICENSES.md](ASSET_LICENSES.md)、YAMNetなどの同梱物は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
 
 これらのライセンス文書はAPKにも同梱し、アプリの「ライセンスとクレジット」から確認できます。
+
+主な外部依存はAndroidX／Jetpack Compose（画面・Android連携）、LiteRT（推論実行）、YAMNet（音の分類モデル）、Kotlin標準ライブラリとCoroutinesです。各ライブラリの主ライセンスはApache 2.0ですが、LiteRTとKotlinにはBSD形式やBoost 1.0の部分もあるため、それらの権利表示・本文も同梱しています。依存先の権利を保持したうえで、このアプリのコードと文書をApache 2.0で提供します。
+
+確認した依存関係と範囲は [docs/dependency-licenses.md](docs/dependency-licenses.md) に記載しています。

@@ -23,7 +23,9 @@ fun LicensesDialog(onDismiss: () -> Unit) {
     val notices by produceState("読み込み中…") {
         value = withContext(Dispatchers.IO) {
             runCatching {
-                listOf("LICENSE", "ASSET_LICENSES.md", "THIRD_PARTY_NOTICES.md").joinToString("\n\n") { name ->
+                val mainDocuments = listOf("LICENSE", "ASSET_LICENSES.md", "THIRD_PARTY_NOTICES.md")
+                val additionalDocuments = context.assets.list("licenses").orEmpty().filterNot { it in mainDocuments }.sorted()
+                (mainDocuments + additionalDocuments).joinToString("\n\n") { name ->
                     context.assets.open("licenses/$name").bufferedReader().use { "$name\n\n${it.readText()}" }
                 }
             }.getOrDefault("ライセンスを読み込めませんでした。")

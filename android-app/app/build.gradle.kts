@@ -10,8 +10,8 @@ android {
         applicationId = "com.kyanro.ibiki_logger"
         minSdk = 29
         targetSdk = 37
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -61,6 +61,7 @@ abstract class LicenseAssetsTask : DefaultTask() {
 // Keep one editable copy of each notice and include it in every APK.
 val licenseAssets by tasks.registering(LicenseAssetsTask::class) {
     notices.from(rootProject.file("../LICENSE"), rootProject.file("../ASSET_LICENSES.md"), rootProject.file("../THIRD_PARTY_NOTICES.md"))
+    notices.from(rootProject.fileTree("../third-party-licenses") { include("*.txt") })
     outputDirectory.set(layout.buildDirectory.dir("generated/licenseAssets"))
 }
 androidComponents.onVariants { variant ->
