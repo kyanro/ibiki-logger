@@ -1,5 +1,13 @@
 # Third-party notices
 
+## Bundled music
+
+Wabigashi Fumi / OTOGI SHIFT — にゃーにゃーにゃー.
+Song page: https://otogishift.com/songs/nyaa-nyaa-nyaa/
+
+This recording is not covered by the Apache License 2.0 for this app's code.
+See `ASSET_LICENSES.md` for the separate media rights notice.
+
 ## YAMNet
 
 YAMNet, TensorFlow Authors / Google, Apache License 2.0. Bundled license:

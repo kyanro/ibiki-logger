@@ -11,6 +11,7 @@ Pixel 10 Pro XL / Android 17 で使う、端末内で完結する夜間録音ア
 - 録音の中断を無音と混同せず記録する。
 - 感度を3段階から選べる。「音だけで検出」は、会話や環境音を含めて拾う調整用モード。
 - 記録ごとの削除。通信・ログイン不要。音声をクラウドへ自動送信しない。
+- Wabigashi Fumi「にゃーにゃーにゃー」の任意再生BGM。音源はAPKに同梱し、オフラインで再生できる。
 
 AndroidのアプリIDと名前空間は **`com.kyanro.ibiki_logger`**。既存アプリ `com.kyanro.sim_speed_viewer` と共通の命名規則。WebサイトやDNSの設定は不要。Play配信や署名鍵の管理は別途必要になる。
 
@@ -60,4 +61,29 @@ Android CLIはプロジェクト内の `.tools/android.exe` またはPATHから�
 
 確認結果と残りの実測項目は [docs/verification.md](docs/verification.md)。
 
-音声・個人の計測データ・開発ツール本体・ビルド成果物は Git に含めない。
+録音した音声・個人の計測データ・開発ツール本体・ビルド成果物は Git に含めない。同梱BGMは権利表示とともに管理する。
+
+## ふみちゃんの歌
+
+ホーム画面下部の「BGMを再生」から、Wabigashi Fumi / OTOGI SHIFT [「にゃーにゃーにゃー」](https://otogishift.com/songs/nyaa-nyaa-nyaa/) を聴けます。同じ音源をsim-speed-viewerにも収録しています。
+
+初期状態はオフで、アプリ画面を開いている間だけ小さめの音量で繰り返し再生します。録音開始、画面消灯、別のアプリへの移動、通話などによる音声の割り込みで停止します。録音停止後やアプリに戻ったときには自動再開しません。録音中はBGMを再生できません。音量は端末のメディア音量でも調整できます。
+
+曲紹介ページは、ボタンを押すと外部ブラウザで開きます。アプリ内の録音・BGM再生に通信は不要です。
+
+## 作者からのにゃーお願い（ライセンス条件ではありません）
+
+これは、作者からの遊び心を込めたお願いです。法的な義務や強制力はなく、守らなくても Apache License 2.0 に基づくコードと文書の利用・改変・再配布の権利には一切影響しません。
+
+- このアプリをビルドした方は、ぜひ一度、Wabigashi Fumi [「にゃーにゃーにゃー」](https://otogishift.com/songs/nyaa-nyaa-nyaa/) を聴いてみてください。
+- 曲を気に入った方は、録音前や朝の振り返りのひとときに、アプリのBGMボタンから楽しんでみてください。
+
+守っていただけたら、作者がとても喜びます。にゃー。
+
+## ライセンス
+
+Copyright 2026 kyanro
+
+ソースコードと文書は、sim-speed-viewerと同じ [Apache License 2.0](LICENSE) の下で提供します。収録音源はApache License 2.0の対象外です。音源の権利表示は [ASSET_LICENSES.md](ASSET_LICENSES.md)、YAMNetなどの同梱物は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+
+これらのライセンス文書はAPKにも同梱し、アプリの「ライセンスとクレジット」から確認できます。

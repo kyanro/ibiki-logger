@@ -10,8 +10,8 @@ android {
         applicationId = "com.kyanro.ibiki_logger"
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -41,6 +41,30 @@ android {
 
 kotlin {
     jvmToolchain(17)
+}
+
+abstract class LicenseAssetsTask : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val notices: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun copyNotices() {
+        val directory = outputDirectory.dir("licenses").get().asFile.apply { mkdirs() }
+        notices.files.forEach { it.copyTo(directory.resolve(it.name), overwrite = true) }
+    }
+}
+
+// Keep one editable copy of each notice and include it in every APK.
+val licenseAssets by tasks.registering(LicenseAssetsTask::class) {
+    notices.from(rootProject.file("../LICENSE"), rootProject.file("../ASSET_LICENSES.md"), rootProject.file("../THIRD_PARTY_NOTICES.md"))
+    outputDirectory.set(layout.buildDirectory.dir("generated/licenseAssets"))
+}
+androidComponents.onVariants { variant ->
+    variant.sources.assets?.addGeneratedSourceDirectory(licenseAssets, LicenseAssetsTask::outputDirectory)
 }
 
 dependencies {

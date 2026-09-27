@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kyanro.ibiki_logger.audio.RecordingService
 import com.kyanro.ibiki_logger.audio.Sensitivity
+import com.kyanro.ibiki_logger.audio.SongPlayer
 import com.kyanro.ibiki_logger.data.ClipRecord
 import com.kyanro.ibiki_logger.data.SessionRecord
 import com.kyanro.ibiki_logger.data.SessionStore
@@ -74,18 +75,27 @@ fun durationLabel(ms: Long): String {
     var deleteId by remember { mutableStateOf<String?>(null) }
     var exporting by remember { mutableStateOf(false) }
     var permissionDenied by remember { mutableStateOf(false) }
+    var showLicenses by rememberSaveable { mutableStateOf(false) }
     val snack = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val player = remember { ClipPlayer() }
+    val songPlayer = remember { SongPlayer(context) }
+    val songPlaying by songPlayer.playing.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) player.stop() }
+    DisposableEffect(lifecycle, songPlayer) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) { player.stop(); songPlayer.stop() }
+        }
         lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer); player.stop() }
+        onDispose { lifecycle.removeObserver(observer); player.stop(); songPlayer.stop() }
+    }
+    LaunchedEffect(live.running, live.stopping) {
+        if (live.running || live.stopping) songPlayer.stop()
     }
     BackHandler(selectedId != null) { player.stop(); selectedId = null }
     LaunchedEffect(live.error) { live.error?.let { snack.showSnackbar(it) } }
     fun startRecording() {
+        songPlayer.stop()
         player.stop()
         runCatching { RecordingService.start(context, sensitivity, soundOnly) }
             .onFailure { scope.launch { snack.showSnackbar("録音を開始できませんでした: ${it.message}") } }
@@ -179,7 +189,7 @@ fun durationLabel(ms: Long): String {
                 item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("これまでの記録", style = MaterialTheme.typography.titleMedium); Text("${sessions.size}件", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
                 if (sessions.isEmpty()) item { Text("記録はまだありません。\n最初の一晩から、少しずつ。", color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 26.sp, modifier = Modifier.padding(vertical = 20.dp)) }
                 items(sessions, key = { it.id }) { session ->
-                    NightCard(Modifier.clickable { player.stop(); selectedId = session.id }) {
+                    NightCard(Modifier.clickable { player.stop(); songPlayer.stop(); selectedId = session.id }) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(dateFormat.format(Instant.ofEpochMilli(session.startedAt)), fontWeight = FontWeight.SemiBold)
                             Text("›", color = MaterialTheme.colorScheme.primary, fontSize = 24.sp)
@@ -190,6 +200,27 @@ fun durationLabel(ms: Long): String {
                     }
                 }
                 item { Text("音の大きさは端末・置き場所で変わります。\n同じ位置で記録すると、日ごとの比較がしやすくなります。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, lineHeight = 20.sp) }
+                item {
+                    NightCard {
+                        Text("ふみちゃんの歌", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                        Text("にゃーにゃーにゃー", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Wabigashi Fumi / OTOGI SHIFT", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        OutlinedButton(modifier = Modifier.fillMaxWidth(), enabled = !live.running && !live.stopping, onClick = {
+                            if (songPlaying) songPlayer.stop()
+                            else {
+                                player.stop()
+                                if (!songPlayer.play()) scope.launch { snack.showSnackbar("BGMを再生できませんでした。ほかの音声の再生状況をご確認ください。") }
+                            }
+                        }) { Text(if (songPlaying) "BGMを停止" else "BGMを再生") }
+                        Text(if (live.running || live.stopping) "録音中はBGMをお休みします。" else "初期状態はオフ。画面を開いている間だけ繰り返し再生します。録音開始や画面を閉じると停止します。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, lineHeight = 20.sp)
+                        TextButton(enabled = !live.running && !live.stopping, onClick = {
+                            songPlayer.stop()
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://otogishift.com/songs/nyaa-nyaa-nyaa/"))) }
+                                .onFailure { scope.launch { snack.showSnackbar("曲の紹介ページを開けませんでした。") } }
+                        }) { Text("曲の紹介ページを開く") }
+                    }
+                }
+                item { TextButton(onClick = { showLicenses = true }) { Text("ライセンスとクレジット") } }
             } else {
                 item {
                     Text(dateFormat.format(Instant.ofEpochMilli(selected.startedAt)), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
@@ -219,6 +250,7 @@ fun durationLabel(ms: Long): String {
                 if (selected.clips.isEmpty()) item { Text("保存した音声はありません。\n検出の感度やマイクの位置を変えて試せます。", color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 24.sp) }
                 items(selected.clips, key = { it.file }) { clip ->
                     ClipCard(selected, clip, player, !live.running) {
+                        songPlayer.stop()
                         runCatching { player.play(File(store.directory(selected.id), clip.file)) }.onFailure { scope.launch { snack.showSnackbar("再生できませんでした: ${it.message}") } }
                     }
                 }
@@ -226,6 +258,7 @@ fun durationLabel(ms: Long): String {
             }
         }
     }
+    if (showLicenses) LicensesDialog(onDismiss = { showLicenses = false })
     if (deleteId != null) AlertDialog(onDismissRequest = { deleteId = null }, title = { Text("この記録を削除しますか？") }, text = { Text("端末内の音声と解析データを削除します。書き出したZIPは残ります。") },
         confirmButton = { TextButton(onClick = {
             val id = deleteId!!; player.stop(); deleteId = null
