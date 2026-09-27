@@ -11,6 +11,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,8 +29,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,10 +55,9 @@ import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.math.log10
 
-private val timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
-private val dateFormat = DateTimeFormatter.ofPattern("M月d日  HH:mm").withZone(ZoneId.systemDefault())
+internal val timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
+internal val dateFormat = DateTimeFormatter.ofPattern("M月d日  HH:mm").withZone(ZoneId.systemDefault())
 fun durationLabel(ms: Long): String {
     val s = ms / 1000
     return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s / 60 % 60, s % 60) else "%02d:%02d".format(s / 60, s % 60)
@@ -126,18 +128,32 @@ fun durationLabel(ms: Long): String {
     val listState = rememberLazyListState()
     LaunchedEffect(selectedId) { listState.scrollToItem(0) }
     Scaffold(containerColor = MaterialTheme.colorScheme.background, snackbarHost = { SnackbarHost(snack) }) { insets ->
-        LazyColumn(Modifier.fillMaxSize().padding(insets), state = listState, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            item {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    if (selected != null) TextButton(onClick = { player.stop(); selectedId = null }) { Text("‹  記録一覧") }
-                    else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Box(Modifier.size(36.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = .12f), CircleShape), contentAlignment = Alignment.Center) { Text("☾", fontSize = 26.sp, color = MaterialTheme.colorScheme.primary) }
-                        Text("いびきログ", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        if (selected != null) {
+            key(selected.id) {
+                SessionDetailScreen(
+                    session = selected, player = player, playbackEnabled = !live.running, exporting = exporting,
+                    modifier = Modifier.fillMaxSize().padding(insets),
+                    onBack = { player.stop(); selectedId = null },
+                    onExport = { exportId = selected.id; exportLauncher.launch("ibiki_${selected.startedAt}.zip") },
+                    onDelete = { deleteId = selected.id },
+                    onPlay = { clip ->
+                        songPlayer.stop()
+                        runCatching { player.play(File(store.directory(selected.id), clip.file)) }
+                            .onFailure { scope.launch { snack.showSnackbar("再生できませんでした: ${it.message}") } }
                     }
-                    Text("端末内に保存", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                }
+                )
             }
-            if (selected == null) {
+        } else {
+            LazyColumn(Modifier.fillMaxSize().padding(insets), state = listState, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                item {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(Modifier.size(36.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = .12f), CircleShape), contentAlignment = Alignment.Center) { Text("☾", fontSize = 26.sp, color = MaterialTheme.colorScheme.primary) }
+                            Text("いびきログ", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        }
+                        Text("端末内に保存", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    }
+                }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("おやすみの間を、\n音で振り返る。", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, lineHeight = 40.sp)
@@ -189,7 +205,7 @@ fun durationLabel(ms: Long): String {
                 item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("これまでの記録", style = MaterialTheme.typography.titleMedium); Text("${sessions.size}件", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
                 if (sessions.isEmpty()) item { Text("記録はまだありません。\n最初の一晩から、少しずつ。", color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 26.sp, modifier = Modifier.padding(vertical = 20.dp)) }
                 items(sessions, key = { it.id }) { session ->
-                    NightCard(Modifier.clickable { player.stop(); songPlayer.stop(); selectedId = session.id }) {
+                    NightCard(Modifier.testTag("session_${session.id}").clickable { player.stop(); songPlayer.stop(); selectedId = session.id }) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(dateFormat.format(Instant.ofEpochMilli(session.startedAt)), fontWeight = FontWeight.SemiBold)
                             Text("›", color = MaterialTheme.colorScheme.primary, fontSize = 24.sp)
@@ -221,40 +237,6 @@ fun durationLabel(ms: Long): String {
                     }
                 }
                 item { TextButton(onClick = { showLicenses = true }) { Text("ライセンスとクレジット") } }
-            } else {
-                item {
-                    Text(dateFormat.format(Instant.ofEpochMilli(selected.startedAt)), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-                    Text(if (selected.soundOnly) "音量で検出した記録" else "いびき候補の記録", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                item {
-                    NightCard {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Metric("記録時間", durationLabel(selected.durationMs)); Metric("保存区間", "${selected.clips.size}"); Metric("候補の目安", if (selected.candidateMs in 1..999) "1秒未満" else durationLabel(selected.candidateMs))
-                        }
-                        SessionTimeline(selected, 90)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(timeFormat.format(Instant.ofEpochMilli(selected.startedAt)), fontSize = 12.sp)
-                            Text(timeFormat.format(Instant.ofEpochMilli(selected.startedAt + selected.durationMs)), fontSize = 12.sp)
-                        }
-                        Text("下の区間から音を確認できます。保存音声には前後の余白を含みます。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                        if (selected.message.isNotEmpty()) Text(selected.message, color = MaterialTheme.colorScheme.error)
-                        if (selected.gaps.isNotEmpty()) Text("マイクの中断 ${selected.gaps.size}件（赤色）。", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-                        Text("${Sensitivity.valueOf(selected.sensitivity).title}の感度 · 保存音声 ${durationLabel(selected.savedMs)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                item {
-                    Button(modifier = Modifier.fillMaxWidth().height(52.dp), enabled = selected.status != "recording" && !exporting, onClick = { exportId = selected.id; exportLauncher.launch("ibiki_${selected.startedAt}.zip") }) { Text(if (exporting) "書き出し中…" else "音声＋解析データを書き出す") }
-                    Text("M4A・JSON・CSV を1つのZIPにまとめます。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-                }
-                item { Text("保存した区間", style = MaterialTheme.typography.titleMedium) }
-                if (selected.clips.isEmpty()) item { Text("保存した音声はありません。\n検出の感度やマイクの位置を変えて試せます。", color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 24.sp) }
-                items(selected.clips, key = { it.file }) { clip ->
-                    ClipCard(selected, clip, player, !live.running) {
-                        songPlayer.stop()
-                        runCatching { player.play(File(store.directory(selected.id), clip.file)) }.onFailure { scope.launch { snack.showSnackbar("再生できませんでした: ${it.message}") } }
-                    }
-                }
-                item { TextButton(enabled = selected.status != "recording" && !exporting, onClick = { deleteId = selected.id }) { Text("この記録を削除", color = MaterialTheme.colorScheme.error) } }
             }
         }
     }
@@ -266,12 +248,12 @@ fun durationLabel(ms: Long): String {
         }) { Text("削除") } }, dismissButton = { TextButton(onClick = { deleteId = null }) { Text("キャンセル") } })
 }
 
-@Composable private fun NightCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+@Composable internal fun NightCard(modifier: Modifier = Modifier, border: BorderStroke? = null, content: @Composable ColumnScope.() -> Unit) {
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, border = border) {
         Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
     }
 }
-@Composable private fun Metric(label: String, value: String) {
+@Composable internal fun Metric(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(value, fontSize = 22.sp, fontWeight = FontWeight.Medium) }
 }
 @Composable private fun SessionTimeline(session: SessionRecord, height: Int = 36) {
@@ -283,13 +265,18 @@ fun durationLabel(ms: Long): String {
         session.gaps.forEach { gap -> drawRect(error.copy(alpha = .6f), Offset(size.width * gap.startMs / duration, 0f), Size(maxOf(2f, size.width * (gap.endMs - gap.startMs) / duration), size.height)) }
     }
 }
-@Composable private fun ClipCard(session: SessionRecord, clip: ClipRecord, player: ClipPlayer, enabled: Boolean, onPlay: () -> Unit) {
+@Composable internal fun ClipCard(session: SessionRecord, clip: ClipRecord, index: Int, highlighted: Boolean, player: ClipPlayer, enabled: Boolean, onPlay: () -> Unit) {
     val playing = player.fileName == clip.file
     var progress by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(playing) { while (playing) { progress = player.progress; delay(100) }; progress = 0f }
-    NightCard {
+    NightCard(Modifier.testTag("clip_$index").semantics { stateDescription = if (highlighted) "選択中" else "" },
+        border = if (highlighted) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column { Text(timeFormat.format(Instant.ofEpochMilli(session.startedAt + clip.startMs)), fontWeight = FontWeight.SemiBold); Text(durationLabel(clip.durationMs), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Column(Modifier.weight(1f)) {
+                Text("区間 ${index + 1}", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                Text(timeFormat.format(Instant.ofEpochMilli(session.startedAt + clip.startMs)), fontWeight = FontWeight.SemiBold)
+                Text(durationLabel(clip.durationMs), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             FilledTonalButton(enabled = enabled, onClick = { if (playing) player.stop() else onPlay() }) { Text(if (playing) "停止" else "再生") }
         }
         Waveform(clip.peaks, if (playing) progress else null)
@@ -303,7 +290,7 @@ fun durationLabel(ms: Long): String {
         repeat(columns) { i ->
             val from = i * peaks.size / columns; val to = ((i + 1) * peaks.size / columns).coerceAtLeast(from + 1).coerceAtMost(peaks.size)
             val peak = (from until to).maxOfOrNull { peaks[it] } ?: 0f
-            val normalized = ((20f * log10(peak.coerceAtLeast(0.000001f)) + 70f) / 70f).coerceIn(0f, 1f)
+            val normalized = waveformHeight(peak)
             val amplitude = maxOf(1.5f, normalized * size.height / 2); val x = (i + .5f) * size.width / columns
             drawLine(color, Offset(x, size.height / 2 - amplitude), Offset(x, size.height / 2 + amplitude), 2.5f, StrokeCap.Round)
         }
@@ -311,7 +298,7 @@ fun durationLabel(ms: Long): String {
     }
 }
 private fun statusLabel(status: String) = when (status) { "recording" -> "記録中"; "interrupted" -> "途中で中断"; "error" -> "エラーで停止"; else -> "記録完了" }
-private class ClipPlayer {
+internal class ClipPlayer {
     var fileName by mutableStateOf<String?>(null)
         private set
     private var media: MediaPlayer? = null
