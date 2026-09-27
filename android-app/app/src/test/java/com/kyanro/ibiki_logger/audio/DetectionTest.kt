@@ -1,4 +1,4 @@
-package dev.ibiki.logger.audio
+package com.kyanro.ibiki_logger.audio
 
 import org.junit.Assert.*
 import org.junit.Test

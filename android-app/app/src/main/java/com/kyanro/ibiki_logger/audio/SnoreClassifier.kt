@@ -1,4 +1,4 @@
-package dev.ibiki.logger.audio
+package com.kyanro.ibiki_logger.audio
 
 import android.content.Context
 import org.tensorflow.lite.Interpreter

@@ -1,4 +1,4 @@
-package dev.ibiki.logger
+package com.kyanro.ibiki_logger
 
 import android.Manifest
 import android.media.MediaExtractor
@@ -9,8 +9,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
-import dev.ibiki.logger.audio.*
-import dev.ibiki.logger.data.*
+import com.kyanro.ibiki_logger.audio.*
+import com.kyanro.ibiki_logger.data.*
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test

@@ -1,4 +1,4 @@
-package dev.ibiki.logger.audio
+package com.kyanro.ibiki_logger.audio
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -21,12 +21,12 @@ import android.os.PowerManager
 import android.os.StatFs
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import dev.ibiki.logger.MainActivity
-import dev.ibiki.logger.R
-import dev.ibiki.logger.data.ClipRecord
-import dev.ibiki.logger.data.GapRecord
-import dev.ibiki.logger.data.SessionRecord
-import dev.ibiki.logger.data.SessionStore
+import com.kyanro.ibiki_logger.MainActivity
+import com.kyanro.ibiki_logger.R
+import com.kyanro.ibiki_logger.data.ClipRecord
+import com.kyanro.ibiki_logger.data.GapRecord
+import com.kyanro.ibiki_logger.data.SessionRecord
+import com.kyanro.ibiki_logger.data.SessionStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 import java.util.UUID
@@ -171,7 +171,7 @@ class RecordingService : Service() {
                     enqueue(segmenter.accept(frame, hit, score))
                 }
                 if (frameCount % 5L == 0L) state.value = state.value.copy(durationMs = sampleOffset * 1000 / SAMPLE_RATE, levelDb = frame.rmsDb, snoreScore = score, silenced = muted)
-                if (frameCount % 50L == 0L) {
+                if (frameCount % 300L == 0L) {
                     val duration = sampleOffset * 1000 / SAMPLE_RATE
                     store.update(id) { it.copy(durationMs = duration) }
                     check(StatFs(filesDir.absolutePath).availableBytes > 50L * 1024 * 1024) { "空き容量が少なくなったため停止しました" }
@@ -214,8 +214,8 @@ class RecordingService : Service() {
 
     companion object {
         private const val CHANNEL = "ibiki_recording"
-        private const val ACTION_START = "dev.ibiki.logger.START"
-        private const val ACTION_STOP = "dev.ibiki.logger.STOP"
+        private const val ACTION_START = "com.kyanro.ibiki_logger.START"
+        private const val ACTION_STOP = "com.kyanro.ibiki_logger.STOP"
         val state = MutableStateFlow(RecordingState())
         fun start(context: Context, sensitivity: Sensitivity, soundOnly: Boolean) {
             ContextCompat.startForegroundService(context, Intent(context, RecordingService::class.java).setAction(ACTION_START)

@@ -1,4 +1,4 @@
-package dev.ibiki.logger.theme
+package com.kyanro.ibiki_logger.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

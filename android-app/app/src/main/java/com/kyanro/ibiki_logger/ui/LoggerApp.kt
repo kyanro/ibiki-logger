@@ -1,4 +1,4 @@
-package dev.ibiki.logger.ui
+package com.kyanro.ibiki_logger.ui
 
 import android.Manifest
 import android.content.Intent
@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -37,11 +38,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.ibiki.logger.audio.RecordingService
-import dev.ibiki.logger.audio.Sensitivity
-import dev.ibiki.logger.data.ClipRecord
-import dev.ibiki.logger.data.SessionRecord
-import dev.ibiki.logger.data.SessionStore
+import com.kyanro.ibiki_logger.audio.RecordingService
+import com.kyanro.ibiki_logger.audio.Sensitivity
+import com.kyanro.ibiki_logger.data.ClipRecord
+import com.kyanro.ibiki_logger.data.SessionRecord
+import com.kyanro.ibiki_logger.data.SessionStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -50,7 +51,7 @@ import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.math.sqrt
+import kotlin.math.log10
 
 private val timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
 private val dateFormat = DateTimeFormatter.ofPattern("M月d日  HH:mm").withZone(ZoneId.systemDefault())
@@ -108,9 +109,14 @@ fun durationLabel(ms: Long): String {
             }
         }
     }
-    val selected = sessions.firstOrNull { it.id == selectedId }
+    val detailed by produceState<SessionRecord?>(null, selectedId, revision) {
+        value = selectedId?.let { id -> withContext(Dispatchers.IO) { store.read(id) } }
+    }
+    val selected = detailed?.takeIf { it.id == selectedId } ?: sessions.firstOrNull { it.id == selectedId }
+    val listState = rememberLazyListState()
+    LaunchedEffect(selectedId) { listState.scrollToItem(0) }
     Scaffold(containerColor = MaterialTheme.colorScheme.background, snackbarHost = { SnackbarHost(snack) }) { insets ->
-        LazyColumn(Modifier.fillMaxSize().padding(insets), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        LazyColumn(Modifier.fillMaxSize().padding(insets), state = listState, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     if (selected != null) TextButton(onClick = { player.stop(); selectedId = null }) { Text("‹  記録一覧") }
@@ -192,7 +198,7 @@ fun durationLabel(ms: Long): String {
                 item {
                     NightCard {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Metric("記録時間", durationLabel(selected.durationMs)); Metric("保存区間", "${selected.clips.size}"); Metric("候補の目安", durationLabel(selected.candidateMs))
+                            Metric("記録時間", durationLabel(selected.durationMs)); Metric("保存区間", "${selected.clips.size}"); Metric("候補の目安", if (selected.candidateMs in 1..999) "1秒未満" else durationLabel(selected.candidateMs))
                         }
                         SessionTimeline(selected, 90)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -264,7 +270,8 @@ fun durationLabel(ms: Long): String {
         repeat(columns) { i ->
             val from = i * peaks.size / columns; val to = ((i + 1) * peaks.size / columns).coerceAtLeast(from + 1).coerceAtMost(peaks.size)
             val peak = (from until to).maxOfOrNull { peaks[it] } ?: 0f
-            val amplitude = maxOf(1.5f, sqrt(peak) * size.height / 2); val x = (i + .5f) * size.width / columns
+            val normalized = ((20f * log10(peak.coerceAtLeast(0.000001f)) + 70f) / 70f).coerceIn(0f, 1f)
+            val amplitude = maxOf(1.5f, normalized * size.height / 2); val x = (i + .5f) * size.width / columns
             drawLine(color, Offset(x, size.height / 2 - amplitude), Offset(x, size.height / 2 + amplitude), 2.5f, StrokeCap.Round)
         }
         progress?.let { drawLine(cursorColor, Offset(it * size.width, 0f), Offset(it * size.width, size.height), 2f) }

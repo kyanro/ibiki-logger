@@ -1,4 +1,4 @@
-package dev.ibiki.logger.audio
+package com.kyanro.ibiki_logger.audio
 
 import kotlin.math.abs
 import kotlin.math.log10

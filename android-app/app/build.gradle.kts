@@ -4,10 +4,10 @@ plugins {
 }
 
 android {
-    namespace = "dev.ibiki.logger"
+    namespace = "com.kyanro.ibiki_logger"
     compileSdk = 37
     defaultConfig {
-        applicationId = "dev.ibiki.logger"
+        applicationId = "com.kyanro.ibiki_logger"
         minSdk = 29
         targetSdk = 37
         versionCode = 1

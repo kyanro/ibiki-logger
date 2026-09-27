@@ -1,8 +1,8 @@
-package dev.ibiki.logger.data
+package com.kyanro.ibiki_logger.data
 
 import android.content.Context
 import android.util.AtomicFile
-import dev.ibiki.logger.audio.SAMPLE_RATE
+import com.kyanro.ibiki_logger.audio.SAMPLE_RATE
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
@@ -21,22 +21,33 @@ class SessionStore private constructor(context: Context) {
     }
 
     @Synchronized fun list(): List<SessionRecord> = root.listFiles().orEmpty()
-        .filter { it.isDirectory }.mapNotNull { read(it.name) }.sortedByDescending { it.startedAt }
+        .filter { it.isDirectory }.mapNotNull { read(it.name, false) }.sortedByDescending { it.startedAt }
 
-    @Synchronized fun read(id: String): SessionRecord? = runCatching {
-        decode(JSONObject(AtomicFile(File(directory(id), "session.json")).readFully().toString(Charsets.UTF_8)))
+    @Synchronized fun read(id: String, includeWaveforms: Boolean = true): SessionRecord? = runCatching {
+        decode(JSONObject(AtomicFile(File(directory(id), "session.json")).readFully().toString(Charsets.UTF_8)), includeWaveforms)
     }.getOrNull()
 
     @Synchronized fun save(record: SessionRecord) {
-        val atomic = AtomicFile(File(directory(record.id), "session.json"))
-        val stream = atomic.startWrite()
-        try { stream.write(encode(record).toString(2).toByteArray()); atomic.finishWrite(stream) }
-        catch (error: Exception) { atomic.failWrite(stream); throw error }
+        // Waveforms are immutable per clip. Do not rewrite hours of waveform data at every checkpoint.
+        record.clips.filter { it.peaks.isNotEmpty() }.forEach { clip ->
+            val file = File(directory(record.id), clip.file + ".waveform.json")
+            if (!file.exists()) {
+                writeJson(file, JSONObject().put("peaks", JSONArray(clip.peaks)).put("rms_dbfs", JSONArray(clip.rmsDb)))
+            }
+        }
+        writeJson(File(directory(record.id), "session.json"), encode(record, false))
         revision.value++
     }
 
+    private fun writeJson(file: File, json: JSONObject) {
+        val atomic = AtomicFile(file)
+        val stream = atomic.startWrite()
+        try { stream.write(json.toString(2).toByteArray()); atomic.finishWrite(stream) }
+        catch (error: Exception) { atomic.failWrite(stream); throw error }
+    }
+
     @Synchronized fun update(id: String, transform: (SessionRecord) -> SessionRecord) {
-        val record = read(id) ?: error("録音の記録を読み込めませんでした")
+        val record = read(id, false) ?: error("録音の記録を読み込めませんでした")
         save(transform(record))
     }
 
@@ -97,7 +108,7 @@ class SessionStore private constructor(context: Context) {
         }
     }
 
-    private fun encode(r: SessionRecord) = JSONObject().apply {
+    private fun encode(r: SessionRecord, includeWaveforms: Boolean = true) = JSONObject().apply {
         put("schema_version", 1); put("id", r.id); put("started_at_epoch_ms", r.startedAt)
         put("started_at_utc", Instant.ofEpochMilli(r.startedAt).toString()); put("duration_ms", r.durationMs)
         put("status", r.status); put("message", r.message); put("sensitivity", r.sensitivity)
@@ -109,21 +120,24 @@ class SessionStore private constructor(context: Context) {
         put("clips", JSONArray().apply { r.clips.forEach { c -> put(JSONObject().apply {
             put("file", c.file); put("start_ms", c.startMs); put("duration_ms", c.durationMs)
             put("max_snore_score", c.maxSnoreScore); put("candidate_window_ms", c.hitWindowMs)
-            put("peaks", JSONArray(c.peaks)); put("rms_dbfs", JSONArray(c.rmsDb))
+            if (includeWaveforms) { put("peaks", JSONArray(c.peaks)); put("rms_dbfs", JSONArray(c.rmsDb)) }
+            else put("waveform_file", c.file + ".waveform.json")
         }) } })
         put("gaps", JSONArray().apply { r.gaps.forEach { g -> put(JSONObject().apply {
             put("start_ms", g.startMs); put("end_ms", g.endMs); put("reason", g.reason)
         }) } })
     }
 
-    private fun decode(j: JSONObject): SessionRecord {
+    private fun decode(j: JSONObject, includeWaveforms: Boolean): SessionRecord {
         val clips = j.getJSONArray("clips")
         val gaps = j.getJSONArray("gaps")
         return SessionRecord(j.getString("id"), j.getLong("started_at_epoch_ms"), j.getLong("duration_ms"),
             j.getString("status"), j.optString("message"), j.getString("sensitivity"), j.getBoolean("sound_only"),
             j.getString("device"), j.getString("android_version"), j.getInt("start_battery_percent"), j.getInt("end_battery_percent"),
             (0 until clips.length()).map { i -> clips.getJSONObject(i).let { c ->
-                val peaks = c.getJSONArray("peaks"); val rms = c.getJSONArray("rms_dbfs")
+                val wave = if (c.has("peaks")) c else if (!includeWaveforms) JSONObject() else
+                    JSONObject(AtomicFile(File(directory(j.getString("id")), c.getString("waveform_file"))).readFully().toString(Charsets.UTF_8))
+                val peaks = wave.optJSONArray("peaks") ?: JSONArray(); val rms = wave.optJSONArray("rms_dbfs") ?: JSONArray()
                 ClipRecord(c.getString("file"), c.getLong("start_ms"), c.getLong("duration_ms"), c.getDouble("max_snore_score").toFloat(),
                     c.getLong("candidate_window_ms"), (0 until peaks.length()).map { peaks.getDouble(it).toFloat() }, (0 until rms.length()).map { rms.getDouble(it) })
             } }, (0 until gaps.length()).map { i -> gaps.getJSONObject(i).let { GapRecord(it.getLong("start_ms"), it.getLong("end_ms"), it.getString("reason")) } })

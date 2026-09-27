@@ -1,6 +1,6 @@
-package dev.ibiki.logger.data
+package com.kyanro.ibiki_logger.data
 
-import dev.ibiki.logger.audio.Sensitivity
+import com.kyanro.ibiki_logger.audio.Sensitivity
 
 data class ClipRecord(
     val file: String,

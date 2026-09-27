@@ -1,4 +1,4 @@
-package dev.ibiki.logger.audio
+package com.kyanro.ibiki_logger.audio
 
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
