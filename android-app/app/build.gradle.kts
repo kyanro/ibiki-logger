@@ -1,7 +1,6 @@
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
-  alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -45,6 +44,7 @@ kotlin {
 }
 
 dependencies {
+  implementation("com.google.ai.edge.litert:litert:1.4.2")
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)
   androidTestImplementation(composeBom)
@@ -76,10 +76,7 @@ dependencies {
   androidTestImplementation(libs.androidx.test.core)
   androidTestImplementation(libs.androidx.test.ext.junit)
   androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation("androidx.test:rules:1.7.0")
   androidTestImplementation(libs.androidx.test.espresso.core)
 
-  // Navigation
-  implementation(libs.androidx.navigation3.ui)
-  implementation(libs.androidx.navigation3.runtime)
-  implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 }
